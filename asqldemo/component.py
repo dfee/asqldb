@@ -8,28 +8,7 @@ from sqlalchemy.orm import (
     sessionmaker,
 )
 
-class SingletonSession:
-    registry = {}
-
-    def __init__(self, factory, ctx):
-        self.factory = factory
-        self.info = dict(self.session.info, ctx=ctx)
-        #  self._transaction = self.session.begin(subtransactions=True)
-
-    def __new__(cls, factory, ctx, *args, **kwargs):
-        ins = super().__new__(cls)
-        if factory not in cls.registry:
-            ins.session = cls.registry[factory] = factory()
-        else:
-            ins.session = cls.registry[factory]
-        ins._transaction = ins.session.begin(subtransactions=True)
-        return ins
-
-    def __getattr__(self, name):
-        return getattr(self.session, name)
-
-    def close(self):
-        pass
+from .db import SingletonSession
 
 
 class SmartSQLAlchemyComponent(SQLAlchemyComponent):

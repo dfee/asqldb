@@ -5,6 +5,7 @@ from asphalt.sqlalchemy.component import SQLAlchemyComponent
 import pytest
 from sqlalchemy import create_engine
 
+from asqldemo.db import SingletonSession
 from asqldemo.models import Base, Message
 from asqldemo.component import SmartSQLAlchemyComponent
 
@@ -27,16 +28,12 @@ def root_ctx(event_loop):
 
 @pytest.fixture(scope='session')
 def sqlalchemy_component(root_ctx):
-    component = SmartSQLAlchemyComponent(
-        debug=True,
+    component = SQLAlchemyComponent(
         url='postgresql://localhost/asqldemo',
-        isolation_level='AUTOCOMMIT',
+        ready_callback=SingletonSession.register,
     )
     root_ctx.loop.run_until_complete(component.start(root_ctx))
-    sql = root_ctx.sql
     Base.metadata.create_all(root_ctx.sql.bind)
-    yield
-    Base.metadata.drop_all(root_ctx.sql.bind)
 
 
 @pytest.fixture
@@ -45,8 +42,15 @@ def ctx(root_ctx):
         yield ctx
 
 
-@pytest.mark.parametrize(('text',), [('hello',), ('world',), ('goodnight',)])
+@pytest.mark.parametrize(('text',), [
+    ('hello',),
+    ('world',),
+    ('goodnight',),
+])
 def test_create(ctx, text, sqlalchemy_component):
-    msg = Message(text=text)
-    ctx.sql.add(msg)
-    ctx.sql.flush()
+    assert ctx.sql.query(Message).count() == 0
+    with Context(ctx) as subctx:
+        msg = Message(text=text)
+        subctx.sql.add(msg)
+        subctx.sql.flush()
+    assert ctx.sql.query(Message).count() == 0
