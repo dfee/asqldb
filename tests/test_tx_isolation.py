@@ -34,6 +34,10 @@ def sqlalchemy_component(root_ctx):
     )
     root_ctx.loop.run_until_complete(component.start(root_ctx))
     Base.metadata.create_all(root_ctx.sql.bind)
+    sql = root_ctx.sql
+    #  import ipdb; ipdb.set_trace()
+    yield
+    sql.close()
 
 
 @pytest.fixture

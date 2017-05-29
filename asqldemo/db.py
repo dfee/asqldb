@@ -13,6 +13,7 @@ class SingletonSession:
         return getattr(self.session, name)
 
     def close(self):
+        self.session.close()
         self._tx.rollback()
 
     @property
@@ -27,12 +28,3 @@ class SingletonSession:
         root_tx = connection.begin()
         cls.registry[engine] = (connection, root_tx)
         maker.class_ = cls
-
-
-#  from sqlalchemy import create_engine
-#  from sqlalchemy.orm import sessionmaker
-#  engine = create_engine('postgresql://localhost/asqldemo')
-#  maker = sessionmaker(bind=engine, class_=SingletonSession)
-#  s = maker()
-#  s2 = maker()
-#  assert s.bind == s2.bind
