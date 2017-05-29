@@ -70,12 +70,11 @@ def test_mapper_event(ctx, sqlalchemy_component):
 
 def test_factory_event_after_flush(ctx, sqlalchemy_component):
     is_called = False
-    def after_flush_hook(session):
+    def after_flush_hook(session, flush_context):
         nonlocal is_called
         is_called = True
     factory = ctx.require_resource(sessionmaker)
     event.listen(factory, 'after_flush', after_flush_hook)
-    import ipdb; ipdb.set_trace()
     with Context(ctx) as subctx:
         msg = Message(text='hello world')
         subctx.sql.add(msg)

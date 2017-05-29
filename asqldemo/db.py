@@ -1,24 +1,16 @@
 from sqlalchemy.orm import Session
 
 
-class SessionMeta(type):
-    def __getattr__(cls, key):
-        return getattr(Session, key)
-
-
-class SingletonSession(metaclass=SessionMeta):
+class SingletonSession(Session):
     registry = {}
 
     def __init__(self, *args, bind, **kwargs):
         connection = self.registry[bind][0]
         self._tx = connection.begin_nested()
-        self.session = Session(*args, bind=connection, **kwargs)
-
-    def __getattr__(self, name):
-        return getattr(self.session, name)
+        super().__init__(*args, bind=connection, **kwargs)
 
     def close(self):
-        self.session.close()
+        super().close()
         self._tx.rollback()
 
     @property
