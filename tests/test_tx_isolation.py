@@ -68,7 +68,23 @@ def test_mapper_event(ctx, sqlalchemy_component):
     assert is_called
 
 
-def test_session_event(ctx, sqlalchemy_component):
+def test_factory_event_after_flush(ctx, sqlalchemy_component):
+    is_called = False
+    def after_flush_hook(session):
+        nonlocal is_called
+        is_called = True
+    factory = ctx.require_resource(sessionmaker)
+    event.listen(factory, 'after_flush', after_flush_hook)
+    import ipdb; ipdb.set_trace()
+    with Context(ctx) as subctx:
+        msg = Message(text='hello world')
+        subctx.sql.add(msg)
+        subctx.sql.flush()
+    event.remove(factory, 'after_flush', after_flush_hook)
+    assert is_called
+
+
+def test_factory_event_before_commit(ctx, sqlalchemy_component):
     is_called = False
     def before_commit_hook(session):
         nonlocal is_called
