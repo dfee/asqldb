@@ -1,7 +1,12 @@
 from sqlalchemy.orm import Session
 
 
-class SingletonSession:
+class SessionMeta(type):
+    def __getattr__(cls, key):
+        return getattr(Session, key)
+
+
+class SingletonSession(metaclass=SessionMeta):
     registry = {}
 
     def __init__(self, *args, bind, **kwargs):

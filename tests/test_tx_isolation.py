@@ -3,11 +3,14 @@ import asyncio
 from asphalt.core import Context
 from asphalt.sqlalchemy.component import SQLAlchemyComponent
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import event
+from sqlalchemy.orm import sessionmaker
 
 from asqldemo.db import SingletonSession
-from asqldemo.models import Base, Message
-from asqldemo.component import SmartSQLAlchemyComponent
+from asqldemo.models import (
+    Base,
+    Message,
+)
 
 
 @pytest.fixture(scope='session')
@@ -34,10 +37,6 @@ def sqlalchemy_component(root_ctx):
     )
     root_ctx.loop.run_until_complete(component.start(root_ctx))
     Base.metadata.create_all(root_ctx.sql.bind)
-    sql = root_ctx.sql
-    #  import ipdb; ipdb.set_trace()
-    yield
-    sql.close()
 
 
 @pytest.fixture
@@ -46,15 +45,40 @@ def ctx(root_ctx):
         yield ctx
 
 
-@pytest.mark.parametrize(('text',), [
-    ('hello',),
-    ('world',),
-    ('goodnight',),
-])
-def test_create(ctx, text, sqlalchemy_component):
-    assert ctx.sql.query(Message).count() == 0
+def test_create(ctx, sqlalchemy_component):
     with Context(ctx) as subctx:
-        msg = Message(text=text)
+        msg = Message(text='hello world')
         subctx.sql.add(msg)
         subctx.sql.flush()
+        assert ctx.sql.query(Message).count() == 1
     assert ctx.sql.query(Message).count() == 0
+
+
+def test_mapper_event(ctx, sqlalchemy_component):
+    is_called = False
+    def call_after_insert(mapper, connection, target):
+        nonlocal is_called
+        is_called = True
+    event.listen(Message, 'after_insert', call_after_insert)
+    with Context(ctx) as subctx:
+        msg = Message(text='hello world')
+        subctx.sql.add(msg)
+        subctx.sql.flush()
+    event.remove(Message, 'after_insert', call_after_insert)
+    assert is_called
+
+
+def test_session_event(ctx, sqlalchemy_component):
+    is_called = False
+    def before_commit_hook(session):
+        nonlocal is_called
+        is_called = True
+    factory = ctx.require_resource(sessionmaker)
+    event.listen(factory, 'before_commit', before_commit_hook)
+    with Context(ctx) as subctx:
+        msg = Message(text='hello world')
+        subctx.sql.add(msg)
+        subctx.sql.flush()
+        subctx.sql.commit()
+    event.remove(factory, 'before_commit', before_commit_hook)
+    assert is_called

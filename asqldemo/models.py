@@ -2,6 +2,7 @@ from sqlalchemy import (
     Column,
     Integer,
     String,
+    event,
 )
 from sqlalchemy.ext.declarative import declarative_base
 
